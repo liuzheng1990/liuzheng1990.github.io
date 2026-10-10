@@ -1,0 +1,1228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Little Circuit Lab</title>
+<style>
+  :root{
+    --bg:#fff8ec; --card:#ffffff; --ink:#2b2a33; --muted:#6b6878; --line:#efe5d2;
+    --blue:#3db7e4; --blue-dk:#1f8fbb; --red:#e8412c; --black:#222;
+    --yellow:#ffc928; --yellow-dk:#d79a00; --green:#2fb36d; --wire:#5b5b66;
+    --parent:#eef7ff; --parent-line:#bfe0f5;
+    --fs: clamp(15px, 1.4vw + 1.2vh, 24px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0}
+  body{background:var(--bg);color:var(--ink);overflow:hidden;
+    font:var(--fs)/1.4 "Nunito","Segoe UI",system-ui,-apple-system,sans-serif;
+    -webkit-user-select:none;user-select:none}
+  .app{height:100vh;height:100dvh;display:grid;grid-template-rows:auto auto 1fr auto;
+    padding:env(safe-area-inset-top) max(12px,env(safe-area-inset-right)) env(safe-area-inset-bottom) max(12px,env(safe-area-inset-left))}
+
+  /* ---- top bar ---- */
+  header{display:flex;align-items:center;gap:10px;padding:8px 4px}
+  .logo{font-weight:800;font-size:1.05em;white-space:nowrap}
+  .logo span{color:var(--blue-dk)}
+  .tabs{display:flex;gap:6px;flex:1;justify-content:center;flex-wrap:wrap}
+  .tabs button{border:2px solid var(--line);background:var(--card);border-radius:999px;padding:4px 14px;font:inherit;font-size:.8em;cursor:pointer;color:var(--ink)}
+  .tabs .short{display:none}
+  @media (max-width:980px){ .tabs .long{display:none} .tabs .short{display:inline} }
+  .tabs button.on{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:700}
+  .subtabs{min-height:1.9em;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:0 4px 6px}
+  .subtabs button{border:none;background:transparent;border-bottom:3px solid transparent;padding:2px 10px;font:inherit;font-size:.75em;color:var(--muted);cursor:pointer;white-space:nowrap}
+  .subtabs button.on{color:var(--ink);font-weight:800;border-bottom-color:var(--yellow)}
+  .subtabs .short{display:none}
+  @media (max-width:980px){ .subtabs .long{display:none} .subtabs .short{display:inline} }
+  .grownup{border:2px solid var(--parent-line);background:var(--parent);border-radius:999px;padding:4px 12px;font:inherit;font-size:.8em;cursor:pointer;white-space:nowrap}
+
+  /* ---- pages ---- */
+  .stage{position:relative;min-height:0}
+  .page{display:none;height:100%;min-height:0;grid-template-columns:1.3fr 1fr;gap:16px;align-items:stretch;padding:4px}
+  .page.on{display:grid;animation:fade .3s ease}
+  @keyframes fade{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
+  .visual{background:var(--card);border:2px solid var(--line);border-radius:22px;min-height:0;display:flex;align-items:center;justify-content:center;padding:8px;box-shadow:0 4px 0 var(--line)}
+  .visual svg{width:100%;height:100%;display:block}
+  .panel{min-height:0;overflow:auto;display:flex;flex-direction:column;justify-content:center;gap:.5em;padding:4px}
+  .panel h2{margin:0;font-size:1.35em;line-height:1.2}
+  .panel p{margin:0}
+  .big{font-size:1.1em}
+  .tip{display:none}
+
+  /* ---- buttons ---- */
+  .btn{border:none;border-radius:16px;padding:.5em 1em;font:inherit;font-weight:800;cursor:pointer;background:var(--blue);color:#fff;box-shadow:0 4px 0 var(--blue-dk);transition:transform .1s}
+  .btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--blue-dk)}
+  .btn.yellow{background:var(--yellow);color:var(--ink);box-shadow:0 4px 0 var(--yellow-dk)}
+  .btn.ghost{background:#fff;color:var(--ink);border:2px solid var(--line);box-shadow:0 4px 0 var(--line)}
+  .btn.pick{background:#fff;color:var(--ink);border:3px solid var(--line);box-shadow:none;min-width:3em;font-size:1.2em}
+  .btn.pick.sel{border-color:var(--blue);background:#e7f7fd}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .feedback{min-height:1.5em;font-weight:800}
+  .good{color:var(--green)} .hmm{color:#c46a00}
+  .hidden{display:none !important}
+  .tap{cursor:pointer}
+
+  /* ---- footer ---- */
+  footer{display:flex;align-items:center;gap:10px;padding:8px 4px 10px}
+  .dots{display:flex;gap:6px;flex:1;justify-content:center;align-items:center}
+  .dots i{width:10px;height:10px;border-radius:50%;background:#e2d8c4;display:block}
+  .dots i.on{background:var(--blue);width:22px;border-radius:6px}
+  .hint{background:var(--yellow);border-radius:14px;padding:.3em .8em;font-weight:800;font-size:.8em;line-height:1.25;position:relative;animation:nudge 1.2s ease-in-out infinite;max-width:46%;text-align:center}
+  .cb.empty rect{fill:#fff;stroke:#cfc6b3;stroke-dasharray:3 2}
+  .cb.empty text{display:none}
+  .switch{cursor:pointer}
+
+  /* things the kid should DO: bold, framed, gently pulsing */
+  .do{display:inline-block;align-self:flex-start;background:#fff3c4;border:3px solid var(--yellow);border-radius:14px;padding:.3em .7em;font-weight:800;font-size:1.1em;animation:glowpulse 1.4s ease-in-out infinite}
+  @keyframes glowpulse{0%,100%{box-shadow:0 0 0 0 rgba(255,180,0,0)}50%{box-shadow:0 0 0 9px rgba(255,180,0,.45)}}
+  .throb{animation:throb 1.2s ease-in-out infinite}
+  @keyframes throb{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+
+  /* power meter beside the bulb */
+  .mslot rect{fill:#fff;stroke:#cfc6b3;stroke-width:2;stroke-dasharray:4 3}
+  .mslot text{display:none}
+  .mslot.full rect{fill:var(--yellow);stroke:var(--yellow-dk);stroke-dasharray:none}
+  .mslot.full text{display:inline}
+  .mslot.miss rect{fill:#ffe1dc;stroke:var(--red);stroke-width:2.5;animation:blink 1s steps(2,start) infinite}
+  @keyframes blink{50%{opacity:.2}}
+  .hint::after{content:"";position:absolute;right:-10px;top:50%;margin-top:-8px;border:8px solid transparent;border-left:10px solid var(--yellow);border-right:0}
+  @keyframes nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(-8px)}}
+  #nextBtn{font-size:1.05em}
+  #backBtn:disabled,#nextBtn:disabled{opacity:.35;cursor:default}
+
+  /* ---- misc ---- */
+  .knob{display:inline-block;width:.75em;height:.75em;border-radius:50%;vertical-align:-1px;margin:0 2px}
+  .knob.r{background:var(--red)} .knob.k{background:var(--black)}
+  .slots{display:inline-flex;gap:6px;vertical-align:middle}
+  .slot{width:1.6em;height:1.6em;border-radius:8px;border:3px dashed #cfc6b3;display:grid;place-items:center;font-size:.85em;transition:background .3s}
+  .slot.full{background:var(--yellow);border:3px solid var(--yellow-dk)}
+  .chain{font-size:1.6em;letter-spacing:.1em}
+  .blade{transition:transform .35s ease;transform-origin:187px 50px}
+
+
+  /* ---- levels ---- */
+  .tabs button.locked{opacity:.55}
+  .toast{position:fixed;left:50%;bottom:80px;transform:translate(-50%,20px);background:var(--ink);color:#fff;border-radius:14px;padding:.5em 1em;font-weight:800;opacity:0;pointer-events:none;transition:.25s;z-index:20}
+  .toast.on{opacity:1;transform:translate(-50%,0)}
+  .twinkle{animation:twinkle 1.4s ease-in-out infinite}
+  .twinkle.d1{animation-delay:.45s} .twinkle.d2{animation-delay:.9s}
+  @keyframes twinkle{0%,100%{opacity:1}50%{opacity:.25}}
+
+  /* ---- short circuit ---- */
+  .hotfx{display:none}
+  svg.hot .hotfx{display:inline;animation:blink .7s steps(2,start) infinite}
+  .hotban{display:none}
+  svg.hot .hotban{display:inline}
+  svg.hot .wire{stroke:#ff3b1f;animation:hotwire .35s ease-in-out infinite alternate}
+  @keyframes hotwire{to{stroke:#ffb000}}
+  .danger{background:#fff1ee;border:3px solid var(--red);border-radius:14px;padding:.3em .7em;font-weight:800;color:var(--red)}
+
+
+  /* ---- final trophy ---- */
+  .trophy .rays{transform-origin:150px 110px;animation:spin 14s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .trophy .bob{animation:bob 2.4s ease-in-out infinite}
+  @keyframes bob{50%{transform:translateY(-8px)}}
+  .trophy .shine{animation:shine 2.8s ease-in-out infinite}
+  @keyframes shine{0%{transform:translateX(-80px)}55%,100%{transform:translateX(260px)}}
+  .trophy .conf{transform-box:fill-box;transform-origin:center;animation:fall linear infinite}
+  @keyframes fall{from{transform:translateY(-40px) rotate(0deg)}to{transform:translateY(320px) rotate(600deg)}}
+  .danger p + p{margin-top:.3em}
+  .cover .visual{padding:0;overflow:hidden}
+  .cover .visual img{width:100%;height:100%;object-fit:cover;display:block}
+  .howto{list-style:none;margin:.2em 0 0;padding:0;display:flex;flex-direction:column;gap:.45em}
+  .howto li{display:flex;gap:.5em;align-items:flex-start;background:#fff;border:2px solid var(--line);border-radius:14px;padding:.35em .6em;font-size:1.02em}
+  .howto li span{flex:none;font-size:1.2em;line-height:1.1}
+  @media (max-height:430px){ /* phone landscape: keep the cover on one screen */
+    .cover .panel h2{font-size:1.1em}
+    .cover .panel .big{display:none}
+    .howto{gap:.3em}
+    .howto li{font-size:.88em;padding:.2em .5em}
+  }
+  .caution{background:#fff4e5;border:3px solid #ff9f1c;border-radius:14px;padding:.3em .7em;font-weight:800;animation:cautionpulse 1.4s ease-in-out infinite}
+  @keyframes cautionpulse{0%,100%{box-shadow:0 0 0 0 rgba(255,159,28,0)}50%{box-shadow:0 0 0 8px rgba(255,159,28,.4)}}
+  .joinmark{animation:blink 1s steps(2,start) infinite}
+  .blinky{animation:redpulse 1.2s ease-in-out infinite}
+  @keyframes redpulse{0%,100%{box-shadow:0 0 0 0 rgba(232,65,44,0)}50%{box-shadow:0 0 0 8px rgba(232,65,44,.35)}}
+
+  /* ---- grown-ups sheet ---- */
+  .sheet{position:fixed;inset:0;background:rgba(40,35,30,.45);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+  .sheet.on{display:flex}
+  .sheet .box{background:var(--parent);border:2px solid var(--parent-line);border-radius:20px;max-width:640px;width:100%;max-height:90%;overflow:auto;padding:16px 20px;font-size:.85em;-webkit-user-select:text;user-select:text}
+  .sheet h3{margin:0 0 6px;color:var(--blue-dk)}
+  .sheet ul{padding-left:1.2em;margin:.4em 0}
+
+  /* ---- portrait phones: stack ---- */
+  @media (orientation:portrait){
+    .page{grid-template-columns:1fr;grid-template-rows:minmax(0,1.1fr) minmax(0,1fr)}
+    .panel{justify-content:flex-start}
+  }
+  @media (max-height:430px){ /* phone landscape: squeeze chrome */
+    header{padding:4px}
+    footer{padding:4px 4px 6px}
+    .logo{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">⚡ Little <span>Circuit</span> Lab</div>
+    <div class="tabs" id="tabs">
+      <button data-sec="ready">🔋 Get Ready</button>
+      <button data-sec="l1">⭐ Level 1</button>
+      <button data-sec="l2">🚀 Level 2<span class="lock"></span></button>
+      <button data-sec="fin">🏆 Finish<span class="lock"></span></button>
+    </div>
+    <button class="grownup" id="grownBtn">👪 Grown-ups</button>
+  </header>
+
+  <nav class="subtabs" id="subtabs"></nav>
+
+  <div class="stage" id="stage">
+
+    <!-- 1. battery -->
+    <!-- Cover -->
+    <section class="page cover" data-sub="" data-sec="cover" data-next="Let's go! ▶">
+      <div class="visual"><img src="img/cover.png" alt="A child and a grown-up building a circuit together"></div>
+      <div class="panel">
+        <h2>⚡ Little <span style="color:var(--blue-dk)">Circuit</span> Lab</h2>
+        <p class="big">Let's make a light bulb shine! 💡</p>
+        <ul class="howto">
+          <li><span>🧑‍🧒</span><div>Build each circuit <b>with a grown-up</b>.</div></li>
+          <li><span>👀</span><div>Watch the bulb. What do you see?</div></li>
+          <li><span>⭐</span><div>Finish experiments to open new levels and win the <b>trophy</b> 🏆!</div></li>
+          <li><span>👪</span><div>Grown-ups: tap <b>Grown-ups</b> at the top for tips.</div></li>
+        </ul>
+      </div>
+      <div class="tip">
+        <h3>Welcome!</h3>
+        <p>This is a play-along guide for a young child (about 5–7) and a grown-up, using a simple electricity kit: 2 batteries, 2 battery boxes, 2 bulbs, 1 switch and some wires.</p>
+        <ul>
+          <li><b>Get Ready</b> (3 short pages) teaches + and −, what a circuit is, and the "power blocks on carts" picture used throughout.</li>
+          <li>Each experiment has a <b>build</b> page (build it for real with your child, then press Continue) and a <b>what happened</b> page with an animation that explains it.</li>
+          <li>Tap <b>👪 Grown-ups</b> on any page for wiring steps, things to check, and the real physics behind the simple words.</li>
+          <li>Level 2 unlocks after Experiments 1–3, and the trophy after everything is done. Progress is saved in this browser. You can unlock everything or reset the game from this Grown-ups pop-up.</li>
+        </ul>
+        <p>⚠️ Stay with your child while building. Never connect a battery's + straight to its − with only a wire.</p>
+      </div>
+    </section>
+
+    <section class="page" data-sub="🔋 Battery" data-sec="ready">
+      <div class="visual">
+        <svg viewBox="0 0 360 140" role="img" aria-label="A battery with a plus end and a minus end">
+          <rect x="40" y="40" width="260" height="60" rx="10" fill="#1d1d1f"/>
+          <rect x="150" y="40" width="110" height="60" fill="var(--yellow)"/>
+          <text x="205" y="77" text-anchor="middle" font-size="20" font-weight="800" fill="#1d1d1f">1.5V</text>
+          <rect x="300" y="56" width="16" height="28" rx="4" fill="#c8c8cc"/>
+          <rect x="34" y="44" width="8" height="52" rx="3" fill="#b5b5ba"/>
+          <g id="plusZone" class="tap">
+            <rect x="240" y="10" width="120" height="120" fill="transparent"/>
+            <circle cx="335" cy="28" r="18" fill="var(--red)"/>
+            <text x="335" y="37" text-anchor="middle" font-size="26" font-weight="800" fill="#fff">+</text>
+          </g>
+          <g id="minusZone" class="tap">
+            <rect x="0" y="10" width="110" height="120" fill="transparent"/>
+            <circle cx="22" cy="28" r="18" fill="var(--black)"/>
+            <text x="22" y="37" text-anchor="middle" font-size="26" font-weight="800" fill="#fff">−</text>
+          </g>
+          <text x="330" y="125" text-anchor="middle" font-size="14" fill="var(--muted)">bumpy</text>
+          <text x="38" y="125" text-anchor="middle" font-size="14" fill="var(--muted)">flat</text>
+        </svg>
+      </div>
+      <div class="panel">
+        <h2>🔋 Meet the battery</h2>
+        <p class="big">Bumpy end is <b style="color:var(--red)">+</b><br>Flat end is <b>−</b></p>
+        <p id="battQ" class="do">🎯 Tap the <b style="color:var(--red)">+</b> end!</p>
+        <div class="feedback" id="battFb"></div>
+      </div>
+      <div class="tip">
+        <h3>Meet the battery</h3>
+        <p>Hold a real battery and let your child feel the bump (+) and the flat end (−).</p>
+        <p>In the kit, every blue block has a <span class="knob r"></span> red knob and a <span class="knob k"></span> black knob. In the battery box, red is the + side and black is the − side. Put the battery in so its + end matches the + mark in the box.</p>
+        <p>To attach a wire, loosen a knob, push the bare metal end of the wire under it, then screw the knob tight again.</p>
+      </div>
+    </section>
+
+    <!-- 2. circuit loop -->
+    <section class="page" data-sub="🔁 Loop" data-sec="ready">
+      <div class="visual"><svg id="loopSvg"></svg></div>
+      <div class="panel">
+        <h2>🔁 A circuit is a loop</h2>
+        <p class="big">Carts carry power blocks <span style="background:var(--yellow);border-radius:6px;padding:0 4px">⚡</span> out of <b style="color:var(--red)">+</b>.</p>
+        <p class="big">The bulb takes the blocks. Empty carts go home to <b>−</b>.</p>
+        <div class="row"><button class="btn yellow throb" id="breakBtn">✂️ Break the loop</button></div>
+        <div class="feedback" id="breakMsg"></div>
+      </div>
+      <div class="tip">
+        <h3>What is a circuit?</h3>
+        <p>A circuit is a closed path. Electricity can only flow when the path goes all the way around, from the battery's + back to its −. Tap "Break the loop" together: when the road is cut, everything stops and the bulb goes dark.</p>
+        <p><b>The cart picture:</b> the carts stand for the electricity flowing in the wire. The power blocks stand for the energy each cart carries. The battery loads the carts, the bulb unloads them and turns the blocks into light, and the empty carts go back to be filled again. The carts are never used up; only the blocks are.</p>
+        <p>Ask your child: "What happens if a road has a hole in it? Can the cars get home?"</p>
+      </div>
+    </section>
+
+    <!-- 3. count -->
+    <section class="page" data-sub="🔢 Count" data-sec="ready">
+      <div class="visual"><svg id="countSvg"></svg></div>
+      <div class="panel">
+        <h2>🔢 Count!</h2>
+        <p class="do" id="countQ">How many power blocks on a <u>full</u> cart?</p>
+        <div class="row">
+          <button class="btn pick" data-count="1">1</button>
+          <button class="btn pick" data-count="2">2</button>
+          <button class="btn pick" data-count="3">3</button>
+        </div>
+        <div class="feedback" id="countFb"></div>
+        <p class="big hidden" id="countRule">1 battery 🔋 puts <b>2 power blocks</b> ⚡⚡ on every cart.</p>
+      </div>
+      <div class="tip">
+        <h3>Power blocks = voltage</h3>
+        <p>"Power blocks" are a kid-sized way to talk about <b>voltage</b>. One AA battery is 1.5 V, so think of each block as about 0.75 V.</p>
+        <p>The same picture works for later experiments:</p>
+        <ul>
+          <li><b>Two batteries in a row:</b> each cart is loaded twice, so it carries 4 blocks and the bulb is bright.</li>
+          <li><b>Two bulbs in a row (series):</b> each cart still carries 2 blocks, but the first bulb takes 1 and the second takes 1, so both are dim.</li>
+          <li><b>Two loops side by side (parallel):</b> carts going into each loop carry 2 blocks each.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 4. experiment 1: build -->
+    <section class="page" data-sub="💡 |1" data-sec="l1" data-next="Continue ▶" data-hint="👉 Build the circuit with your parent and observe what happened.">
+      <div class="visual"><svg id="planSvg"></svg></div>
+      <div class="panel">
+        <h2>💡 Experiment 1</h2>
+        <p class="chain">🔋 ➜ 🎚️ ➜ 💡</p>
+        <p class="do">🔧 Build this circuit.<br>👇 Close the switch.<br>👀 Look at the bulb!</p>
+      </div>
+      <div class="tip">
+        <h3>How to build it</h3>
+        <ul>
+          <li>Put <b>1 battery</b> in a battery box, + to +.</li>
+          <li>Wire 1: battery box <span class="knob r"></span> red knob ➜ one knob on the <b>switch</b>.</li>
+          <li>Wire 2: the switch's other knob ➜ bulb <span class="knob r"></span> red knob.</li>
+          <li>Wire 3: bulb <span class="knob k"></span> black knob ➜ battery box <span class="knob k"></span> black knob.</li>
+          <li>Press the switch arm down to close it.</li>
+        </ul>
+        <p>💡 <b>The glow is faint.</b> Turn off the room light, or cup your hands around the bulb.</p>
+        <p>🔍 <b>No light?</b> Check that the bulb is screwed in tight, each wire's bare metal is under a knob, the switch is pressed all the way down, and the battery faces the right way.</p>
+        <p>⚠️ <b>Safety:</b> never join the battery box's red knob straight to its black knob with only a wire. The wire gets hot and the battery drains quickly.</p>
+        <p>Before pressing Continue, ask your child: "What do you see? Is the bulb bright, a little bit on, or off?"</p>
+      </div>
+    </section>
+
+    <!-- 5. experiment 1: why -->
+    <section class="page" data-sub="💡 |1" data-sec="l1" data-done="1" data-next="Experiment 2 ▶">
+      <div class="visual"><svg id="whySvg"></svg></div>
+      <div class="panel">
+        <h2>🕯️ The bulb is dim!</h2>
+        <p class="big">Only <b>1</b> bulb here, so it takes <b>both</b> power blocks ⚡⚡.</p>
+        <p class="big">It uses them up to make light. 💡</p>
+        <p class="big">The bulb needs <b>4</b> to shine bright. <b style="color:var(--red)">2 are missing!</b></p>
+        <p class="do">👆 Tap the switch!</p>
+      </div>
+      <div class="tip">
+        <h3>Why is it dim?</h3>
+        <p>One AA battery gives 1.5 V. The little bulbs in kits like this are made for about 2.5 to 3.8 V. Too little voltage pushes too little current through the thin wire inside the bulb, so it only warms up to a dull orange glow.</p>
+        <p>To keep it simple, we say the bulb "needs 4 power blocks from each cart" (about 3 V, which is two batteries). Each cart arrives with 2 and leaves empty: all of the battery's energy goes into the bulb, but it isn't enough to make it bright.</p>
+        <p>Ask: "We have <b>two</b> batteries. How could we give the bulb 4 power blocks?"</p>
+      </div>
+    </section>
+
+    <!-- 6. experiment 2: build -->
+    <section class="page" data-sub="🔋🔋 |2" data-sec="l1" data-next="Continue ▶" data-hint="👉 Build the circuit with your parent and observe what happened.">
+      <div class="visual"><svg id="plan2Svg"></svg></div>
+      <div class="panel">
+        <h2>🔋🔋 Experiment 2</h2>
+        <p class="chain">🔋🔋 ➜ 🎚️ ➜ 💡</p>
+        <p class="caution">🔋 Watch the battery direction!<br>Join the <b style="color:var(--red)">+</b> of one battery to the <b>−</b> of the other.</p>
+        <p class="do">🔧 Build it with <u>2</u> batteries.<br>👇 Close the switch.<br>👀 Is the bulb brighter?</p>
+      </div>
+      <div class="tip">
+        <h3>How to build it</h3>
+        <p>We use both battery boxes, one after the other. In the picture they are box <b>1</b> and box <b>2</b>.</p>
+        <ul>
+          <li>Put <b>1 battery</b> in each box, + to +.</li>
+          <li>Wire 1: box 1 <span class="knob k"></span> black knob ➜ box 2 <span class="knob r"></span> red knob. This joins the two batteries in a row, − to +.</li>
+          <li>Wire 2: box 1 <span class="knob r"></span> red knob ➜ one knob on the <b>switch</b>.</li>
+          <li>Wire 3: the switch's other knob ➜ bulb <span class="knob r"></span> red knob.</li>
+          <li>Wire 4: bulb <span class="knob k"></span> black knob ➜ box 2 <span class="knob k"></span> black knob.</li>
+          <li>Press the switch arm down to close it.</li>
+        </ul>
+        <p>🔍 <b>Compare:</b> if your child isn't sure it's brighter, quickly rebuild Experiment 1 next to it and look at both.</p>
+        <p>🔍 <b>Dimmer than Experiment 1, or no light?</b> One battery is probably the wrong way round. Check that box 1's black knob goes to box 2's <i>red</i> knob.</p>
+        <p>⚠️ Open the switch when you're done looking, so the batteries last longer.</p>
+        <p>Before pressing Continue, ask: "Is the bulb brighter or dimmer than last time?"</p>
+      </div>
+    </section>
+
+    <!-- 7. experiment 2: why -->
+    <section class="page" data-sub="🔋🔋 |2" data-sec="l1" data-done="2" data-next="Experiment 3 ▶">
+      <div class="visual"><svg id="why2Svg"></svg></div>
+      <div class="panel">
+        <h2>🌟 The bulb is bright!</h2>
+        <p class="big">2 batteries 🔋🔋 put <b>4</b> power blocks on each cart.</p>
+        <p class="big">Only <b>1</b> bulb here, so it takes <b>all 4</b> ⚡⚡⚡⚡.</p>
+        <p class="big"><b style="color:var(--green)">4 is just what it needs!</b></p>
+        <p class="do">👆 Tap the switch!</p>
+      </div>
+      <div class="tip">
+        <h3>Why is it brighter?</h3>
+        <p>Batteries joined in a row (<i>in series</i>, + of one to − of the next) add their voltages: 1.5 V + 1.5 V = 3 V. In the cart picture, each battery loads 2 blocks onto every cart that passes, so every cart now arrives at the bulb with 4.</p>
+        <p>It's the same carts going round, but each one carries twice as much energy, so the bulb gets enough to shine properly. (In real life, the bigger push also makes the electricity flow a bit faster. "Fuller carts" is the main idea for now.)</p>
+        <p>Ask: "What do you think happens if we have <b>2 bulbs</b> and only 1 battery? Will each bulb get 2 blocks, or will they have to share?"</p>
+      </div>
+    </section>
+
+    <!-- 8. experiment 3: build -->
+    <section class="page" data-sub="💡💡 |3" data-sec="l1" data-next="Continue ▶" data-hint="👉 Build the circuit with your parent and observe what happened.">
+      <div class="visual"><svg id="plan3Svg"></svg></div>
+      <div class="panel">
+        <h2>💡💡 Experiment 3</h2>
+        <p class="chain">🔋 ➜ 🎚️ ➜ 💡 ➜ 💡</p>
+        <p class="do">🔧 Build it with <u>1</u> battery and <u>2</u> bulbs.<br>👇 Close the switch.<br>👀 Look at both bulbs!</p>
+      </div>
+      <div class="tip">
+        <h3>How to build it</h3>
+        <p>Back to <b>1 battery</b>. The two bulbs go one after the other, so the carts must pass through bulb <b>1</b> and then bulb <b>2</b>.</p>
+        <ul>
+          <li>Wire 1: battery box <span class="knob r"></span> red knob ➜ one knob on the <b>switch</b>.</li>
+          <li>Wire 2: the switch's other knob ➜ bulb 1 <span class="knob r"></span> red knob.</li>
+          <li>Wire 3: bulb 1 <span class="knob k"></span> black knob ➜ bulb 2 <span class="knob r"></span> red knob.</li>
+          <li>Wire 4: bulb 2 <span class="knob k"></span> black knob ➜ battery box <span class="knob k"></span> black knob.</li>
+          <li>Press the switch arm down to close it.</li>
+        </ul>
+        <p>👀 <b>Expect very little light.</b> Turn off the room light and look closely. Even then you may see <b>nothing at all</b>, and that's the right result! The bulbs get so little power that the glow is too faint to see.</p>
+        <p>Before pressing Continue, ask: "Are the bulbs brighter or dimmer than in Experiment 1? Why do you think so?"</p>
+        <p>⭐ <b>Bonus:</b> swap in <b>2 batteries</b> (as in Experiment 2). Each cart then brings 4 blocks, each bulb gets 2, and both glow dimly, just like Experiment 1.</p>
+      </div>
+    </section>
+
+    <!-- 9. experiment 3: why -->
+    <section class="page" data-sub="💡💡 |3" data-sec="l1" data-done="3" data-next="Finish Level 1 ▶">
+      <div class="visual"><svg id="why3Svg"></svg></div>
+      <div class="panel">
+        <h2>😮 Very, very dim!</h2>
+        <p class="big">Each cart still has only <b>2</b> power blocks.</p>
+        <p class="big">2 bulbs must <b>share</b>: 1 for bulb 1, 1 for bulb 2.</p>
+        <p class="big">Each bulb needs 4. <b style="color:var(--red)">3 are missing!</b></p>
+        <p class="do">👆 Tap the switch!</p>
+      </div>
+      <div class="tip">
+        <h3>Why so dim?</h3>
+        <p>When bulbs are joined one after the other (<i>in series</i>), they share the battery's voltage. Each bulb gets about 0.75 V, half of the 1.5 V. In the cart picture, bulb 1 takes 1 block from each cart and bulb 2 takes the last one, so the cart goes home empty and each bulb gets only a quarter of what it needs.</p>
+        <p>(In real life, two bulbs also make it harder for electricity to flow, so the carts move more slowly too. "Sharing the blocks" is the key idea for now.)</p>
+        <p>Ask: "What if each bulb had its <b>own</b> road back to the battery, side by side? Would they still have to share?"</p>
+      </div>
+    </section>
+
+    <!-- Level 1 complete ➜ unlocks Level 2 -->
+    <section class="page" data-sub="🏆 Done" data-sec="l1" data-need="1,2,3" data-next="Go to Level 2 ▶">
+      <div class="visual">
+        <svg viewBox="0 0 300 200" aria-label="Trophy">
+          <text class="twinkle" x="50" y="60" font-size="34" text-anchor="middle">⭐</text>
+          <text class="twinkle d1" x="250" y="55" font-size="30" text-anchor="middle">⭐</text>
+          <text class="twinkle d2" x="40" y="165" font-size="26" text-anchor="middle">✨</text>
+          <text class="twinkle d1" x="262" y="170" font-size="30" text-anchor="middle">🎉</text>
+          <text x="150" y="140" font-size="110" text-anchor="middle">🏆</text>
+        </svg>
+      </div>
+      <div class="panel">
+        <h2>🎉 Level 1 complete!</h2>
+        <p class="big">You built <b>3</b> circuits! ⭐⭐⭐</p>
+        <p class="do">🔓 Level 2 is open!</p>
+      </div>
+      <div class="tip">
+        <h3>Level 1 recap</h3>
+        <ul>
+          <li><b>Exp 1:</b> 1 battery = 2 blocks per cart, so the bulb is dim.</li>
+          <li><b>Exp 2:</b> 2 batteries in a row = 4 blocks per cart, so the bulb is bright.</li>
+          <li><b>Exp 3:</b> 2 bulbs in a row share the 2 blocks, so both are very dim.</li>
+        </ul>
+        <p>Level 2 covers bulbs side by side (<i>parallel</i>) and <b>short circuits</b>, including safety. Please do Level 2 together with your child.</p>
+      </div>
+    </section>
+
+    <!-- Exp 4: parallel, build -->
+    <section class="page" data-sub="🔀 |4" data-sec="l2" data-next="Continue ▶" data-hint="👉 Build the circuit with your parent and observe what happened.">
+      <div class="visual"><svg id="plan4Svg"></svg></div>
+      <div class="panel">
+        <h2>🔀 Experiment 4</h2>
+        <p class="chain">🔋🔋 ➜ 🎚️ ➜ 🔀 💡💡</p>
+        <p class="do">🔧 Give each bulb its <u>own</u> road.<br>👇 Close the switch.<br>👀 Look at both bulbs!</p>
+      </div>
+      <div class="tip">
+        <h3>How to build it</h3>
+        <p>2 batteries (like Experiment 2), and the 2 bulbs <b>side by side</b>: the road splits so each bulb gets its own path. You need <b>6 wires</b>.</p>
+        <ul>
+          <li>Wire 1: box 1 <span class="knob k"></span> black knob ➜ box 2 <span class="knob r"></span> red knob.</li>
+          <li>Wire 2: box 1 <span class="knob r"></span> red knob ➜ one knob on the <b>switch</b>.</li>
+          <li>Wire 3: the switch's other knob ➜ bulb 1 <span class="knob r"></span> red knob.</li>
+          <li>Wire 4: bulb 1 <span class="knob r"></span> red knob ➜ bulb 2 <span class="knob r"></span> red knob. Two wires can share one knob.</li>
+          <li>Wire 5: bulb 1 <span class="knob k"></span> black knob ➜ bulb 2 <span class="knob k"></span> black knob.</li>
+          <li>Wire 6: bulb 2 <span class="knob k"></span> black knob ➜ box 2 <span class="knob k"></span> black knob.</li>
+        </ul>
+        <p>Compare it with Experiment 3: there the bulbs were in a row and both very dim. Now both should be bright.</p>
+        <p>⭐ <b>Bonus:</b> with the switch closed, unscrew one bulb. The other one keeps shining because it still has its own road!</p>
+      </div>
+    </section>
+
+    <!-- Exp 4: parallel, why -->
+    <section class="page" data-sub="🔀 |4" data-sec="l2" data-done="4" data-next="Experiment 5 ▶">
+      <div class="visual"><svg id="why4Svg"></svg></div>
+      <div class="panel">
+        <h2>🌟🌟 Both bright!</h2>
+        <p class="big">The road splits in two. 🔀</p>
+        <p class="big">Each cart picks <b>one</b> road and takes all <b>4</b> blocks to its bulb.</p>
+        <p class="big"><b style="color:var(--green)">No sharing, so both are bright!</b></p>
+        <p class="do">👆 Tap the switch!</p>
+      </div>
+      <div class="tip">
+        <h3>Why are both bright?</h3>
+        <p>Side by side (<i>in parallel</i>), each bulb is connected straight across the batteries, so each one gets the full 3 V. In the cart picture, a cart never visits both bulbs: it goes down one road or the other, and it carries all 4 blocks to that bulb.</p>
+        <p>The catch is that twice as many carts leave the battery, so the batteries work twice as hard and run out sooner.</p>
+        <p>Your house is wired like this. That's why switching off one lamp doesn't switch off the others.</p>
+      </div>
+    </section>
+
+    <!-- Exp 5: shortcut, build -->
+    <section class="page" data-sub="🔗 |5" data-sec="l2" data-next="Continue ▶" data-hint="👉 Build the circuit with your parent and observe what happened.">
+      <div class="visual"><svg id="plan5Svg"></svg></div>
+      <div class="panel">
+        <h2>🔗 Experiment 5</h2>
+        <p class="chain">🔋🔋 ➜ 🎚️ ➜ 💡 ➜ 💡</p>
+        <p class="do">🔧 Build 2 batteries + 2 bulbs in a row.<br>🔗 Add the <span style="color:#e07000">shortcut</span> wire on bulb 2.<br>👀 Which bulb shines?</p>
+      </div>
+      <div class="tip">
+        <h3>How to build it</h3>
+        <ol>
+          <li>Build Experiment 3 again, but with <b>2 batteries</b> (box 1 black ➜ box 2 red, box 1 red ➜ switch ➜ bulb 1 ➜ bulb 2 ➜ box 2 black).</li>
+          <li>Close the switch and look: both bulbs glow a little, because each gets 2 of the 4 blocks.</li>
+          <li>Now take <b>one more wire</b> and connect bulb 2's <span class="knob r"></span> red knob to bulb 2's <span class="knob k"></span> black knob. That's the <b>shortcut</b> wire, joining the two rods of the <b>same</b> bulb.</li>
+          <li>Watch: bulb 2 goes out, and bulb 1 gets brighter!</li>
+        </ol>
+        <p>Take the shortcut wire off again and bulb 2 comes back.</p>
+        <p>⚠️ Only ever put the shortcut across <b>one</b> bulb. Never across both bulbs, and never straight across a battery box. The next pages explain why.</p>
+      </div>
+    </section>
+
+    <!-- Exp 5: shortcut, why -->
+    <section class="page" data-sub="🔗 |5" data-sec="l2" data-done="5" data-next="⚠️ Safety ▶">
+      <div class="visual"><svg id="why5Svg"></svg></div>
+      <div class="panel">
+        <h2>🛝 Bulb 2 is dark!</h2>
+        <p class="big">The shortcut wire is a <b>slide</b> 🛝. Bulb 2 is a hard <b>climb</b> 🧗.</p>
+        <p class="big">Carts always pick the easy slide! So bulb 2 gets <b>nothing</b>.</p>
+        <p class="big">Bulb 1 gets all <b>4</b> ⚡⚡⚡⚡. Bright!</p>
+        <p class="do">👆 Tap the switch!</p>
+      </div>
+      <div class="tip">
+        <h3>What's a short circuit?</h3>
+        <p>A plain wire lets electricity through very easily, but a bulb's thin filament makes it hard work. When you put a wire across bulb 2, almost all the electricity takes the easy wire and skips the bulb. Bulb 2 has been "<b>short-circuited</b>": the circuit has been made <i>shorter</i>, so it no longer goes through that bulb.</p>
+        <p>Bulb 1 is now the only bulb in the loop, so it gets the full 3 V, just like Experiment 2.</p>
+        <p>This one is <b>safe</b> because the carts still have to go through bulb 1, and the bulb keeps the flow under control. The next page shows when a short circuit becomes dangerous.</p>
+        <p>Metaphor to use: "Would you climb the big rock wall or take the slide? The carts always choose the slide."</p>
+      </div>
+    </section>
+
+    <!-- Safety: short circuit hazard -->
+    <section class="page" data-sub="⚠️ Safety" data-sec="l2" data-done="safety" data-next="🏆 Finish ▶">
+      <div class="visual"><svg id="hazSvg"></svg></div>
+      <div class="panel">
+        <p class="danger blinky">🚫 Do NOT try this with a real circuit.<br>📱 On the screen only!</p>
+        <h2>⚠️ Short circuit danger!</h2>
+        <p class="big">Carts must always go through a bulb.</p>
+        <p class="big">If they can go from <b style="color:var(--red)">+</b> to <b>−</b> without <b>any</b> bulb: 🚨 <b>short circuit!</b></p>
+        <p class="do">👆 Tap the shortcut buttons!</p>
+        <div class="row">
+          <button class="btn pick" data-haz="0" style="font-size:.9em">🔗 Shortcut bulb 1</button>
+          <button class="btn pick" data-haz="1" style="font-size:.9em">🔗 Shortcut bulb 2</button>
+        </div>
+        <div class="feedback" id="hazFb"></div>
+        <p class="danger">🚫 Never join <b>+</b> and <b>−</b> with only a wire!</p>
+      </div>
+      <div class="tip">
+        <h3>Why is a short circuit dangerous?</h3>
+        <p>A bulb limits how much electricity can flow. If there's a path from + to − with <b>no bulb</b> (or anything else that uses the power), nothing limits it. A huge current rushes round, and all of the battery's energy turns into <b>heat</b> in the wire and the battery.</p>
+        <ul>
+          <li>Even AA batteries can get hot enough in seconds to burn fingers, melt plastic, leak or burst.</li>
+          <li>Phone batteries, power banks and coin cells (lithium) can catch <b>fire</b>.</li>
+          <li>Wall sockets are hundreds of times stronger. Never put anything into them.</li>
+        </ul>
+        <h3>When does it happen?</h3>
+        <ul>
+          <li>A wire joins the battery box's red and black knobs directly.</li>
+          <li>A shortcut wire goes across <b>every</b> bulb in the loop (as in the demo with both buttons on).</li>
+          <li>Loose batteries in a pocket or bag touch coins, keys or foil.</li>
+          <li>A damaged wire lets bare metal touch.</li>
+        </ul>
+        <p><b>If a wire or battery gets hot:</b> let go, open the switch or take the battery out, and let it cool down. Please don't try the "both shortcuts" version with the real kit; the on-screen demo is enough.</p>
+      </div>
+    </section>
+
+    <!-- Final: congratulations -->
+    <section class="page" data-sub="🏆 Finish" data-sec="fin">
+      <div class="visual">
+        <svg viewBox="0 0 300 270" class="trophy" aria-label="Golden trophy">
+          <defs>
+            <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#fff6c4"/><stop offset=".35" stop-color="#ffd23f"/>
+              <stop offset=".7" stop-color="#e3a400"/><stop offset="1" stop-color="#b87800"/>
+            </linearGradient>
+            <linearGradient id="goldDk" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#ffcf33"/><stop offset="1" stop-color="#a86b00"/>
+            </linearGradient>
+            <radialGradient id="halo"><stop offset="0" stop-color="#fff3a6" stop-opacity=".9"/><stop offset="1" stop-color="#fff3a6" stop-opacity="0"/></radialGradient>
+            <clipPath id="cupClip"><path d="M95 50 H205 V95 C205 140 180 160 150 162 C120 160 95 140 95 95 Z"/></clipPath>
+          </defs>
+          <circle cx="150" cy="110" r="120" fill="url(#halo)"/>
+          <g class="rays"></g>
+          <g class="bob">
+            <path d="M97 62 C55 62 55 125 110 128" fill="none" stroke="url(#goldDk)" stroke-width="12" stroke-linecap="round"/>
+            <path d="M203 62 C245 62 245 125 190 128" fill="none" stroke="url(#goldDk)" stroke-width="12" stroke-linecap="round"/>
+            <path d="M95 50 H205 V95 C205 140 180 160 150 162 C120 160 95 140 95 95 Z" fill="url(#gold)" stroke="#b87800" stroke-width="3"/>
+            <rect x="90" y="44" width="120" height="12" rx="6" fill="url(#goldDk)"/>
+            <rect x="140" y="160" width="20" height="28" fill="url(#goldDk)"/>
+            <rect x="112" y="186" width="76" height="14" rx="4" fill="url(#gold)" stroke="#b87800" stroke-width="2"/>
+            <rect x="100" y="200" width="100" height="30" rx="6" fill="#7a4a22"/>
+            <rect x="122" y="207" width="56" height="15" rx="3" fill="url(#gold)"/>
+            <text x="150" y="219" text-anchor="middle" font-size="11" font-weight="900" fill="#7a4a22">EXPERT</text>
+            <text x="150" y="120" text-anchor="middle" font-size="44">⚡</text>
+            <g clip-path="url(#cupClip)">
+              <g class="shine"><rect x="40" y="30" width="34" height="160" fill="#fff" opacity=".6" transform="skewX(-20)"/></g>
+            </g>
+          </g>
+          <text class="twinkle" x="48" y="58" font-size="26" text-anchor="middle">✨</text>
+          <text class="twinkle d1" x="258" y="70" font-size="28" text-anchor="middle">⭐</text>
+          <text class="twinkle d2" x="40" y="190" font-size="24" text-anchor="middle">⭐</text>
+          <text class="twinkle d1" x="262" y="200" font-size="26" text-anchor="middle">✨</text>
+          <g class="confetti"></g>
+        </svg>
+      </div>
+      <div class="panel">
+        <h2>🎉 Congratulations!</h2>
+        <p class="big">You are now a <b>little electricity expert</b>! ⚡🏆</p>
+        <div class="danger" style="font-size:.95em">
+          <p>🏠 Electricity at home is <u>much</u> stronger than batteries. It can hurt you badly.</p>
+          <p>🚫 Plugs, sockets and cords are <b>not toys</b>. Never touch them or poke things in.</p>
+          <p>🙋 Always ask a grown-up for help.</p>
+        </div>
+        <div class="row"><button class="btn big yellow" id="playAgain" style="font-size:1.2em">🔁 Play Again</button></div>
+      </div>
+      <div class="tip">
+        <h3>Well done!</h3>
+        <p>Your child has explored batteries, open and closed circuits, series and parallel circuits, and short circuits.</p>
+        <p>Please reinforce the home-safety message: mains electricity (wall sockets, plugs, chargers, extension cords) is hundreds of times more powerful than the kit's batteries and can kill. Kids should never open, poke or play with anything plugged into the wall, and should never touch electrical things with wet hands.</p>
+        <p>"Play Again" starts from the beginning. Level 2 and Finish stay unlocked.</p>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <button class="btn ghost" id="backBtn">◀</button>
+    <div class="dots" id="dots"></div>
+    <span class="hint hidden" id="hint"></span>
+    <button class="btn" id="nextBtn">Next ▶</button>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="sheet" id="sheet"><div class="box" id="sheetBox"></div></div>
+
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+/* ---------- circuit geometry ----------
+   Every circuit is one or more "routes" (closed polylines) that start in the middle of the top
+   battery and go up out of +, across the top (switch), down the right side through the bulb(s),
+   along the bottom, and back up into −.
+   - series: one route; a shortcut wire makes the route detour round that bulb.
+   - parallel: two routes that share the battery side and split at the top into one bulb each. */
+function polyD(pts){ return "M" + pts.map(p => p.join(" ")).join(" L"); }
+function polyLen(pts){
+  let L = 0;
+  for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i-1][0], pts[i][1] - pts[i-1][1]);
+  return L;
+}
+// distance along the polyline to point q (q must lie on one of its segments)
+function sOnPoly(pts, q){
+  let acc = 0;
+  for (let i = 1; i < pts.length; i++){
+    const [ax, ay] = pts[i-1], [bx, by] = pts[i], seg = Math.hypot(bx - ax, by - ay);
+    const d1 = Math.hypot(q[0] - ax, q[1] - ay), d2 = Math.hypot(bx - q[0], by - q[1]);
+    if (Math.abs(d1 + d2 - seg) < 0.5) return acc + d1;
+    acc += seg;
+  }
+  return null;
+}
+function geo({batts=1, bulbs=1, parallel=false, shortcut=[]} = {}){
+  const tall = batts === 2 || bulbs === 2;
+  const bottom = tall ? 350 : 230;
+  const battYs = batts === 2 ? [140, 260] : tall ? [200] : [140];
+  const start = battYs[0];
+  const load = 2*batts;
+  let bulbList, routePts;
+  if (parallel){
+    const y = 182;
+    bulbList = [{x:260, y, route:0, meterX:205}, {x:390, y, route:1, meterX:335}];
+    routePts = bulbList.map(b => [[70,start],[70,50],[b.x,50],[b.x,bottom],[70,bottom],[70,start]]);
+  } else {
+    const ys = bulbs === 2 ? [122, 262] : [tall ? 182 : 122];
+    const pts = [[70,start],[70,50],[350,50]];
+    bulbList = ys.map((y, i) => {
+      const cut = !!shortcut[i];
+      if (cut) pts.push([350,y-40],[295,y-40],[295,y+68],[350,y+68]);   // detour along the shortcut wire
+      return {x:350, y, route: cut ? null : 0, meterX:425, cut};
+    });
+    pts.push([350,bottom],[70,bottom],[70,start]);
+    routePts = [pts];
+  }
+  const routes = routePts.map((pts, r) => {
+    const len = polyLen(pts);
+    const active = bulbList.filter(b => b.route === r);
+    active.forEach(b => { b.s = sOnPoly(pts, [b.x, b.y - 32]); b.take = load / active.length; });  // bulbs in a row share
+    return {pts, d: polyD(pts), len,
+      // where carts pass through a battery centre and get loaded (the top battery is at the route's start/end)
+      sources: battYs.map(y => ({s: y === start ? len : sOnPoly(pts, [70, y]), add: 2}))};
+  });
+  bulbList.forEach(b => {
+    b.at = {x:b.x, y:b.y + 2};
+    b.meter = [0,1,2,3].map(i => ({x:b.meterX, y:b.y + 40 - i*27}));   // 4 slots stacked, filled from the bottom
+  });
+  return {batts, bottom, battYs, load, routes, bulbs: bulbList, parallel, H: bottom + 60};
+}
+
+/* ---------- circuit drawing ---------- */
+function battMarkup(cy, {num, plusY = cy - 42, minusY = cy + 64} = {}){
+  return `
+    <rect x="40" y="${cy-52}" width="60" height="108" rx="10" fill="var(--blue)"/>
+    <rect x="57" y="${cy-32}" width="26" height="70" rx="5" fill="#1d1d1f"/>
+    <rect x="57" y="${cy-10}" width="26" height="26" fill="var(--yellow)"/>
+    <rect x="64" y="${cy-38}" width="12" height="7" rx="2" fill="#c8c8cc"/>
+    <circle cx="70" cy="${cy-52}" r="10" fill="var(--red)"/>
+    <circle cx="70" cy="${cy+56}" r="10" fill="var(--black)"/>
+    <text x="106" y="${plusY}" font-size="24" font-weight="800" fill="var(--red)">+</text>
+    <text x="106" y="${minusY}" font-size="24" font-weight="800" fill="var(--black)">−</text>
+    ${num ? `<text x="22" y="${cy+8}" text-anchor="middle" font-size="22" font-weight="800" fill="var(--muted)">${num}</text>` : ""}`;
+}
+function bulbMarkup(b, gid, num){
+  const {x, y} = b;
+  return `<g class="bulb">
+    <circle class="glow" cx="${x}" cy="${y}" r="60" fill="url(#${gid})" opacity="0"/>
+    <rect x="${x-30}" y="${y+28}" width="60" height="30" rx="6" fill="var(--blue)"/>
+    <rect x="${x-11}" y="${y+18}" width="22" height="16" rx="3" fill="#b9b9bf"/>
+    <circle class="glass" cx="${x}" cy="${y}" r="22" fill="#fbfbff" stroke="#a9a9b3" stroke-width="2"/>
+    <path class="filament" d="M${x-8} ${y+18} L${x-8} ${y+2} Q${x-4} ${y-8} ${x} ${y+2} Q${x+4} ${y-8} ${x+8} ${y+2} L${x+8} ${y+18}" fill="none" stroke="#7a7a85" stroke-width="2"/>
+    ${num ? `<text x="${x+36}" y="${y-12}" text-anchor="middle" font-size="22" font-weight="800" fill="var(--muted)">${num}</text>` : ""}
+  </g>`;
+}
+function meterMarkup(b){
+  return `<g class="meter">
+    <rect x="${b.meterX-20}" y="${b.y-59}" width="40" height="114" rx="10" fill="#fffaf0" stroke="#eadfc4" stroke-width="2"/>
+    ${b.meter.map(m => `<g class="mslot">
+      <rect x="${m.x-11}" y="${m.y-11}" width="22" height="22" rx="4" fill="var(--yellow)" stroke="var(--yellow-dk)" stroke-width="2"/>
+      <text x="${m.x}" y="${m.y+4.5}" text-anchor="middle" font-size="12">⚡</text></g>`).join("")}
+    <text x="${b.meterX}" y="${b.y+76}" text-anchor="middle" font-size="15" font-weight="800" fill="var(--ink)">needs 4</text>
+  </g>`;
+}
+function drawCircuit(svg, {batts=1, bulbs=1, parallel=false, shortcut=[], hasSwitch=false, meter=false} = {}){
+  const g = svg._geo = geo({batts, bulbs, parallel, shortcut});
+  const W = parallel ? 440 : meter ? 460 : 420;
+  svg.setAttribute("viewBox", `0 0 ${W} ${g.H}`);
+  const gid = svg.id + "-glow";
+  const batteries = batts === 2
+    ? battMarkup(140, {num:"1", minusY:198}) + battMarkup(260, {num:"2", plusY:226})
+    : battMarkup(g.battYs[0]);
+  const numbered = g.bulbs.length > 1;
+  const cutBulbs = g.bulbs.filter(b => b.cut);
+  const labelX = g.bulbs.reduce((a, b) => a + b.x, 0) / g.bulbs.length;
+  svg.innerHTML = `
+    <defs><radialGradient id="${gid}">
+      <stop offset="0" stop-color="#ffd84a" stop-opacity="1"/>
+      <stop offset="1" stop-color="#ffd84a" stop-opacity="0"/>
+    </radialGradient></defs>
+    ${g.routes.map(r => `<path class="wire" d="${r.d}" fill="none" stroke="var(--wire)" stroke-width="6" stroke-linejoin="round"/>`).join("")}
+    ${cutBulbs.map(b => `
+      <path class="wire" d="M350 ${b.y-40} L350 ${b.y+68}" fill="none" stroke="var(--wire)" stroke-width="6"/>
+      <path class="wire shortwire" d="M350 ${b.y-40} L295 ${b.y-40} L295 ${b.y+68} L350 ${b.y+68}" fill="none" stroke="#ff8a00" stroke-width="6" stroke-linejoin="round"/>
+      <text x="287" y="${b.y+20}" text-anchor="end" font-size="15" font-weight="800" fill="#e07000">shortcut</text>`).join("")}
+    ${g.routes.map((r, i) => `<path class="track" d="${r.d}" fill="none" stroke="none"/>`).join("")}
+    <rect class="gapcover" x="186" y="42" width="48" height="16" fill="#fff" opacity="${hasSwitch ? 1 : 0}"/>
+
+    ${g.bulbs.map((b, i) => bulbMarkup(b, gid, numbered ? String(i + 1) : "")).join("")}
+
+    <g class="carts"></g>
+    ${batteries}
+
+    ${hasSwitch ? `
+    <g class="switch">
+      <rect x="165" y="10" width="90" height="60" fill="transparent"/>
+      <circle cx="187" cy="50" r="8" fill="var(--black)"/>
+      <circle cx="235" cy="50" r="8" fill="var(--red)"/>
+      <line class="blade" x1="187" y1="50" x2="240" y2="50" stroke="#a9a9b3" stroke-width="7" stroke-linecap="round" style="transform:rotate(-38deg)"/>
+      <circle cx="187" cy="50" r="4" fill="#ddd"/>
+    </g>
+    <text x="211" y="88" text-anchor="middle" font-size="18" font-weight="700" fill="var(--ink)">Switch</text>` : ""}
+    <text x="70" y="${g.bottom+42}" text-anchor="middle" font-size="18" font-weight="700" fill="var(--ink)">${batts === 2 ? "Batteries" : "Battery"}</text>
+    <text x="${labelX}" y="${g.bottom+42}" text-anchor="middle" font-size="18" font-weight="700" fill="var(--ink)">${numbered ? "Light bulbs" : "Light bulb"}</text>
+    ${meter ? g.bulbs.map(meterMarkup).join("") : ""}
+    <g class="hotfx">
+      <text x="210" y="${g.bottom-16}" text-anchor="middle" font-size="24" font-weight="900" fill="var(--red)">🔥 HOT! 🔥</text>
+      <text x="22" y="${g.battYs[0] + 72}" text-anchor="middle" font-size="26">🔥</text>
+    </g>
+    <g class="hotban">
+      <rect x="122" y="160" width="166" height="84" rx="12" fill="var(--red)" stroke="#fff" stroke-width="4"/>
+      <text x="205" y="188" text-anchor="middle" font-size="20">🚫</text>
+      <text x="205" y="213" text-anchor="middle" font-size="17" font-weight="900" fill="#fff">NEVER DO THIS</text>
+      <text x="205" y="234" text-anchor="middle" font-size="17" font-weight="900" fill="#fff">YOURSELF!</text>
+    </g>
+    <g class="fx"></g>
+  `;
+}
+function setSwitch(svg, closed){
+  svg.querySelector(".blade").style.transform = closed ? "rotate(0deg)" : "rotate(-38deg)";
+}
+// Meter: slots below `got` are refilled by each cart; the rest blink red (never filled).
+// `all` = this bulb gets nothing at all (it's been shortcut), so every slot blinks.
+function setMeter(meterEl, got, on, all = false){
+  meterEl.querySelectorAll(".mslot").forEach((s, i) => {
+    s.classList.remove("full");
+    s.classList.toggle("miss", on && (all || (got > 0 && i >= got)));
+  });
+}
+function setSlot(meterEl, i, full){
+  meterEl.querySelectorAll(".mslot")[i].classList.toggle("full", full);
+}
+function setBulb(bulbEl, b){
+  const glow = bulbEl.querySelector(".glow");
+  glow.setAttribute("opacity", b);
+  glow.setAttribute("r", 50 + 60*b);                     // brighter bulb = bigger halo
+  bulbEl.querySelector(".glass").setAttribute("fill", b > 0.02 ? `rgba(255,214,70,${0.2 + b*0.7})` : "#fbfbff");
+  bulbEl.querySelector(".filament").setAttribute("stroke", b > 0.6 ? "#fff6c2" : b > 0.02 ? "#ff8a00" : "#7a7a85");
+}
+function blockMarkup(cx, cy){
+  return `<rect x="${cx-9}" y="${cy-9}" width="18" height="18" rx="4" fill="var(--yellow)" stroke="var(--yellow-dk)" stroke-width="2"/>
+          <text x="${cx}" y="${cy+4.5}" text-anchor="middle" font-size="12">⚡</text>`;
+}
+// A cart with `k` block seats (2 per row).
+function makeCart(layer, k){
+  const cols = Math.min(k, 2), rows = Math.ceil(k/2);
+  const w = cols*22 + 6, h = rows*22 + 6;
+  const g = document.createElementNS(NS, "g");
+  let html = `<rect x="${-w/2}" y="${-h/2}" width="${w}" height="${h}" rx="9" fill="#fff" stroke="var(--blue-dk)" stroke-width="2.5"/>`;
+  for (let i = 0; i < k; i++){
+    const cx = -w/2 + 3 + (i % cols)*22 + 11, cy = -h/2 + 3 + Math.floor(i/cols)*22 + 11;
+    html += `<g class="cb">${blockMarkup(cx, cy)}</g>`;
+  }
+  g.innerHTML = html;
+  layer.appendChild(g);
+  return g;
+}
+
+/* ---------- cart flow engine ----------
+   Carts ride round their route. Each battery a cart passes through loads 2 more blocks onto it.
+   Each stop (a bulb) takes `take` blocks from every cart that passes; the bulb's brightness
+   is how many blocks it gets from each cart compared with how many it `need`s.
+   With two routes (parallel), carts take turns choosing a road; longer roads run a bit faster
+   so every cart finishes its lap in the same time and they never bunch up. */
+const anims = [];
+function makeFlow(svg, {carts=5, speed=85, stops=[]}){
+  const g = svg._geo, load = g.load;
+  const fx = svg.querySelector(".fx");
+  stops = stops.map(st => ({...st, glow:0, pulse:0, got:0}));
+  const tracks = svg.querySelectorAll(".track");
+  const routes = g.routes.map((r, i) => ({
+    track: tracks[i], len: tracks[i].getTotalLength(),
+    events: [...r.sources, ...stops.filter(st => st.route === i)].sort((a, b) => a.s - b.s)
+  }));
+  const L0 = routes[0].len;
+  function pass(c, e, live){
+    if (e.add !== undefined){ c.n = Math.min(load, c.n + e.add); return; }
+    const t = Math.min(e.take, c.n);
+    if (t){ c.n -= t; if (live) unload(c, e, t); }
+  }
+  const list = Array.from({length:carts}, (_, i) => {
+    const R = routes[i % routes.length];
+    // start each cart with what it would carry at that spot after a full lap
+    const c = {r: i % routes.length, s: i/carts * R.len, n: 0};
+    R.events.forEach(e => pass(c, e, false));
+    R.events.forEach(e => { if (e.s < c.s) pass(c, e, false); });
+    c.g = makeCart(svg.querySelector(".carts"), load);
+    return c;
+  });
+  const flying = [];
+  const timers = [];
+  function flyBlock(from, to, dur, keep, then){
+    const el = document.createElementNS(NS, "g");
+    el.innerHTML = blockMarkup(0, 0);
+    fx.appendChild(el);
+    flying.push({el, kind:"block", t:0, dur, from, to, keep, then});
+  }
+
+  function unload(c, st, t){
+    const p = routes[c.r].track.getPointAtLength(c.s);
+    st.got = t;
+    if (st.slots){
+      // With a meter: blocks land in the slots, wait a moment, then the bulb uses them up
+      // (they shrink into the bulb) and the slots are empty again for the next cart.
+      for (let i = 0; i < t; i++){
+        flyBlock({x:p.x + (i - (t-1)/2)*20, y:p.y}, st.slots[i], .7, true, () => {
+          st.onSlot && st.onSlot(i, true);
+          timers.push({t:.55, fn: () => {
+            st.onSlot && st.onSlot(i, false);
+            flyBlock(st.slots[i], st.at, .5, false, () => {
+              st.pulse = 1;
+              if (i === t - 1) floatText(st, t, 0);   // all blocks used: "+⚡⚡" rises off the bulb
+            });
+          }});
+        });
+      }
+      st.onUnload && st.onUnload(t);
+      return;
+    }
+    st.pulse = 1;
+    for (let i = 0; i < t; i++) flyBlock({x:p.x + (i - (t-1)/2)*20, y:p.y}, st.at, .55, false);
+    floatText(st, t, -.4);
+    st.onUnload && st.onUnload(t);
+  }
+
+  // "+⚡⚡" (or "🔥🔥" for a hot wire) floating up and fading away
+  function floatText(st, t, delay){
+    const txt = document.createElementNS(NS, "text");
+    txt.setAttribute("text-anchor", "middle"); txt.setAttribute("font-size", "20"); txt.setAttribute("font-weight", "800");
+    txt.setAttribute("fill", "var(--yellow-dk)"); txt.setAttribute("opacity", 0);
+    txt.textContent = st.symbol ? st.symbol.repeat(t) : "+" + "⚡".repeat(t);
+    fx.appendChild(txt);
+    const x = st.textAt ? st.textAt.x : st.at.x - 30 - 11*t;
+    const y = st.textAt ? st.textAt.y : st.at.y;
+    flying.push({el:txt, kind:"text", t:delay, dur:1.1, from:{x, y}, to:{x, y:y - 45}});
+  }
+
+  const f = {
+    running:true,
+    setRunning(on){ this.running = on; },
+    destroy(){ const k = anims.indexOf(this); if (k >= 0) anims.splice(k, 1); },
+    tick(dt){
+      if (this.running){
+        list.forEach(c => {
+          const R = routes[c.r], prev = c.s;
+          c.s += speed * (R.len / L0) * dt;
+          R.events.forEach(e => { if (prev < e.s && c.s >= e.s) pass(c, e, true); });
+          if (c.s >= R.len) c.s -= R.len;
+        });
+      }
+      list.forEach(c => {
+        const p = routes[c.r].track.getPointAtLength(c.s);
+        c.g.setAttribute("transform", `translate(${p.x},${p.y})`);
+        c.g.querySelectorAll(".cb").forEach((b, i) => b.classList.toggle("empty", i >= c.n));
+      });
+      stops.forEach(st => {
+        const target = this.running ? st.got / st.need : 0;
+        st.glow += (target - st.glow) * Math.min(1, dt*3);
+        st.pulse = Math.max(0, st.pulse - dt*2.5);
+        // 1 of 4 blocks ➜ barely glowing, 2 ➜ dim, 4 ➜ bright
+        st.light(Math.min(1, 0.95*st.glow*st.glow + st.pulse*0.12));
+      });
+      for (let i = flying.length - 1; i >= 0; i--){
+        const fl = flying[i];
+        fl.t += dt;
+        const u = Math.max(0, Math.min(1, fl.t / fl.dur));
+        const x = fl.from.x + (fl.to.x - fl.from.x)*u, y = fl.from.y + (fl.to.y - fl.from.y)*u;
+        if (fl.kind === "block"){
+          // into a meter slot: keep full size and land; into the bulb: shrink and vanish
+          fl.el.setAttribute("transform", `translate(${x},${y}) scale(${fl.keep ? 1 + u*0.2 : 1 - u*0.7})`);
+          fl.el.setAttribute("opacity", fl.keep ? 1 : 1 - u*u);
+        } else {
+          fl.el.setAttribute("x", x); fl.el.setAttribute("y", y);
+          fl.el.setAttribute("opacity", fl.t < 0 ? 0 : 1 - u);
+        }
+        if (fl.t >= fl.dur){ fl.el.remove(); flying.splice(i, 1); fl.then && fl.then(); }
+      }
+      for (let i = timers.length - 1; i >= 0; i--){
+        if ((timers[i].t -= dt) <= 0){ const fn = timers[i].fn; timers.splice(i, 1); fn(); }
+      }
+    }
+  };
+  anims.push(f);
+  return f;
+}
+// One stop per bulb that carts actually visit. `extra(i, bulbEl, meterEl, b)` adds per-bulb options.
+function bulbStops(svg, extra = () => ({})){
+  const bulbEls = svg.querySelectorAll(".bulb"), meterEls = svg.querySelectorAll(".meter");
+  return svg._geo.bulbs.map((b, i) => b.route === null ? null : ({
+    route:b.route, s:b.s, take:b.take, need:4, at:b.at, light: v => setBulb(bulbEls[i], v),
+    ...extra(i, bulbEls[i], meterEls[i], b)
+  })).filter(Boolean);
+}
+// Result page: carts flowing, blocks go through each meter into its bulb.
+// switchable: draw a switch the kid can tap. hot: short circuit — no bulb in the way, carts race and dump
+// their blocks into the wire as heat.
+function setupResult(svg, opts, {switchable = true, hot = false} = {}){
+  drawCircuit(svg, {...opts, hasSwitch:switchable, meter:true});
+  svg.classList.toggle("hot", hot);
+  const g = svg._geo;
+  let closed = true;
+  if (switchable) setSwitch(svg, true);
+  const meterEls = svg.querySelectorAll(".meter");
+  const reset = () => g.bulbs.forEach((b, i) => setMeter(meterEls[i], 0, closed, b.route === null));
+  reset();
+  const stops = hot
+    ? [{route:0, s: sOnPoly(g.routes[0].pts, [210, g.bottom]), take:g.load, need:4,
+        at:{x:210, y:g.bottom}, textAt:{x:210, y:g.bottom - 40}, light: () => {}, symbol:"🔥"}]
+    : bulbStops(svg, (i, bulbEl, meterEl, b) => ({
+        slots: b.meter,
+        textAt: g.parallel ? {x:b.x, y:b.y - 36} : null,
+        onUnload: t => setMeter(meterEl, t, closed),
+        onSlot: (k, full) => setSlot(meterEl, k, full && closed)
+      }));
+  const flow = makeFlow(svg, {speed: hot ? 320 : 70, carts: g.parallel ? 6 : 5, stops});
+  if (switchable) svg.querySelector(".switch").addEventListener("click", () => {
+    closed = !closed;
+    setSwitch(svg, closed);
+    flow.setRunning(closed);
+    reset();
+  });
+  return flow;
+}
+let last = performance.now();
+(function frame(t){
+  const dt = Math.min(.05, (t - last)/1000); last = t;
+  anims.forEach(a => a.tick(dt));
+  requestAnimationFrame(frame);
+})(last);
+
+/* ---------- page 1: battery quiz ---------- */
+let battStage = "plus";
+function battTap(which){
+  const fb = $("#battFb");
+  if (battStage === "done") return;
+  if (which !== battStage){ fb.innerHTML = `<span class="hmm">Try again! Bumpy or flat? 🤔</span>`; return; }
+  if (which === "plus"){
+    fb.innerHTML = `<span class="good">⭐ Yes!</span>`;
+    battStage = "minus";
+    $("#battQ").innerHTML = `🎯 Now tap the <b>−</b> end!`;
+  } else {
+    fb.innerHTML = `<span class="good">⭐⭐ Great job!</span>`;
+    battStage = "done";
+    $("#battQ").innerHTML = `✅ You know your battery!`;
+    $("#battQ").classList.remove("do");
+  }
+}
+$("#plusZone").addEventListener("click", () => battTap("plus"));
+$("#minusZone").addEventListener("click", () => battTap("minus"));
+
+/* ---------- page 2: loop ---------- */
+const loopSvg = $("#loopSvg");
+drawCircuit(loopSvg);
+const loop = makeFlow(loopSvg, {stops: bulbStops(loopSvg)});
+let broken = false;
+$("#breakBtn").addEventListener("click", () => {
+  broken = !broken;
+  loopSvg.querySelector(".gapcover").setAttribute("opacity", broken ? 1 : 0);
+  loop.setRunning(!broken);
+  $("#breakBtn").textContent = broken ? "🔗 Fix the loop" : "✂️ Break the loop";
+  $("#breakMsg").innerHTML = broken
+    ? `<span class="hmm">Broken! Everything stops. 🛑</span>`
+    : `<span class="good">Fixed! Round and round! 🎉</span>`;
+});
+
+/* ---------- page 3: count ---------- */
+const countSvg = $("#countSvg");
+drawCircuit(countSvg);
+makeFlow(countSvg, {speed:55, stops: bulbStops(countSvg)});
+$$("[data-count]").forEach(b => b.addEventListener("click", () => {
+  $$("[data-count]").forEach(x => x.classList.toggle("sel", x === b));
+  if (b.dataset.count === "2"){
+    $("#countFb").innerHTML = `<span class="good">⭐ Yes, 2!</span>`;
+    $("#countRule").classList.remove("hidden");
+    $("#countQ").classList.remove("do");
+  } else {
+    $("#countFb").innerHTML = `<span class="hmm">Look at a cart coming out of + ☝️</span>`;
+  }
+}));
+
+/* ---------- Level 1 ---------- */
+// Exp 1: 1 battery, 1 bulb ➜ dim
+drawCircuit($("#planSvg"), {hasSwitch:true});
+setupResult($("#whySvg"), {batts:1});
+// Exp 2: 2 batteries, 1 bulb ➜ bright
+drawCircuit($("#plan2Svg"), {batts:2, hasSwitch:true});
+// point at the join between the two batteries: − of battery 1 meets + of battery 2
+$("#plan2Svg .fx").insertAdjacentHTML("beforebegin", `
+  <ellipse class="joinmark" cx="70" cy="202" rx="26" ry="28" fill="none" stroke="#ff9f1c" stroke-width="4" stroke-dasharray="6 4"/>
+  <text x="150" y="196" font-size="17" font-weight="900" fill="#e07000">− to +</text>
+  <text x="150" y="216" font-size="15" font-weight="800" fill="#e07000">here!</text>`);
+setupResult($("#why2Svg"), {batts:2});
+// Exp 3: 1 battery, 2 bulbs in a row ➜ they share, very dim
+drawCircuit($("#plan3Svg"), {bulbs:2, hasSwitch:true});
+setupResult($("#why3Svg"), {bulbs:2});
+
+/* ---------- Level 2 ---------- */
+// Exp 4: 2 batteries, 2 bulbs side by side ➜ each road gets full carts, both bright
+drawCircuit($("#plan4Svg"), {batts:2, bulbs:2, parallel:true, hasSwitch:true});
+setupResult($("#why4Svg"), {batts:2, bulbs:2, parallel:true});
+// Exp 5: 2 batteries, 2 bulbs in a row, shortcut wire across bulb 2 ➜ bulb 2 dark, bulb 1 bright
+drawCircuit($("#plan5Svg"), {batts:2, bulbs:2, shortcut:[false, true], hasSwitch:true});
+setupResult($("#why5Svg"), {batts:2, bulbs:2, shortcut:[false, true]});
+
+// Safety: tap to shortcut bulb 1 and/or bulb 2. Both ➜ no bulb left in the loop ➜ short circuit.
+const hazSvg = $("#hazSvg");
+let haz = [false, false], hazFlow = null;
+function buildHazard(){
+  if (hazFlow) hazFlow.destroy();
+  const hot = haz[0] && haz[1];
+  hazFlow = setupResult(hazSvg, {batts:2, bulbs:2, shortcut:haz}, {switchable:false, hot});
+  $$("[data-haz]").forEach(b => b.classList.toggle("sel", haz[+b.dataset.haz]));
+  const fb = $("#hazFb");
+  if (hot)              fb.innerHTML = `<span style="color:var(--red)">🚨 SHORT CIRCUIT! No bulb in the way. The wires get HOT! 🔥</span>`;
+  else if (haz[0])      fb.innerHTML = `<span class="good">✅ Safe. The carts still go through bulb 2.</span>`;
+  else if (haz[1])      fb.innerHTML = `<span class="good">✅ Safe. The carts still go through bulb 1.</span>`;
+  else                  fb.innerHTML = `<span class="good">✅ Safe. Both bulbs share the blocks.</span>`;
+}
+$$("[data-haz]").forEach(b => b.addEventListener("click", () => {
+  haz[+b.dataset.haz] = !haz[+b.dataset.haz];
+  buildHazard();
+}));
+buildHazard();
+
+/* ---------- final page: trophy rays + confetti ---------- */
+$(".trophy .rays").innerHTML = Array.from({length:12}, (_, i) => {
+  const a = i*Math.PI/6, w = 0.12, R = 170;
+  const p = t => `${150 + R*Math.cos(t)},${110 + R*Math.sin(t)}`;
+  return `<polygon points="150,110 ${p(a - w)} ${p(a + w)}" fill="#ffe27a" opacity=".45"/>`;
+}).join("");
+const CONF = ["#e8412c", "#3db7e4", "#2fb36d", "#ffc928", "#b36bff", "#ff8ac2"];
+$(".trophy .confetti").innerHTML = Array.from({length:18}, (_, i) =>
+  `<rect class="conf" x="${10 + (i*53) % 280}" y="0" width="8" height="12" rx="2" fill="${CONF[i % CONF.length]}"
+     style="animation-duration:${2.6 + (i % 5)*0.5}s;animation-delay:-${(i*0.37).toFixed(2)}s"/>`).join("");
+$("#playAgain").addEventListener("click", () => location.reload());   // fresh start; progress (unlocked levels) is kept
+
+/* ---------- progress & locks ----------
+   An experiment is complete once its result page ("what happened") has been shown; the safety page counts too.
+   Level 2 needs Experiments 1–3. Finish needs everything. Saved in this browser's local storage. */
+const DONE_KEY = "circuitLab.done", ALL_KEY = "circuitLab.unlockAll";
+const NEED = {l2: ["1","2","3"], fin: ["1","2","3","4","5","safety"]};
+let done = new Set(), unlockAll = false;
+try {
+  done = new Set(JSON.parse(localStorage.getItem(DONE_KEY) || "[]"));
+  unlockAll = localStorage.getItem(ALL_KEY) === "1";
+} catch (e) {}
+function save(){
+  try {
+    localStorage.setItem(DONE_KEY, JSON.stringify([...done]));
+    localStorage.setItem(ALL_KEY, unlockAll ? "1" : "0");
+  } catch (e) {}
+}
+// what still has to be completed before page p can be opened
+function missing(p){
+  if (unlockAll) return [];
+  const need = NEED[p.dataset.sec] || (p.dataset.need ? p.dataset.need.split(",") : []);
+  return need.filter(n => !done.has(n));
+}
+// everything is open (all done, or a grown-up unlocked it all)
+function allOpen(){ return missing(pages.find(p => p.dataset.sec === "fin")).length === 0; }
+function lockMsg(miss){
+  const exps = miss.filter(n => n !== "safety");
+  const parts = [];
+  if (exps.length) parts.push(exps.length === 1 ? `Experiment ${exps[0]}` : `Experiments ${exps.join(", ")}`);
+  if (miss.includes("safety")) parts.push("the Safety page");
+  return `🔒 First finish ${parts.join(" and ")}!`;
+}
+function renderLock(){
+  ["l2", "fin"].forEach(sec => {
+    const t = $(`#tabs [data-sec="${sec}"]`);
+    const locked = missing(pages.find(p => p.dataset.sec === sec)).length > 0;
+    t.classList.toggle("locked", locked);
+    t.querySelector(".lock").textContent = locked ? " 🔒" : "";
+  });
+}
+let toastTimer = null;
+function toast(msg){
+  const el = $("#toast");
+  el.textContent = msg; el.classList.add("on");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("on"), 2200);
+}
+
+/* ---------- paging ---------- */
+const pages = $$(".page");
+let cur = 0;
+function show(i){
+  i = Math.max(0, Math.min(pages.length - 1, i));
+  const miss = missing(pages[i]);
+  if (miss.length){ toast(lockMsg(miss)); return; }
+  cur = i;
+  const p = pages[cur];
+  pages.forEach((x, k) => x.classList.toggle("on", k === cur));
+  // dots show where you are inside the current level
+  $("#dots").innerHTML = pages.filter(x => x.dataset.sec === p.dataset.sec)
+    .map(x => `<i class="${x === p ? "on" : ""}"></i>`).join("");
+  $$("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.sec === p.dataset.sec));
+  // experiments inside the current level
+  const subs = [...new Set(pages.filter(x => x.dataset.sec === p.dataset.sec).map(x => x.dataset.sub))];
+  $("#subtabs").innerHTML = subs.length < 2 ? "" : subs.map(s => {
+    const [icon, n] = s.split("|");
+    const label = n ? `${icon}<span class="long">Experiment</span><span class="short">Exp</span> ${n}` : icon;
+    return `<button data-sub="${s}" class="${s === p.dataset.sub ? "on" : ""}">${label}</button>`;
+  }).join("");
+  $("#backBtn").disabled = cur === 0;
+  const isLast = cur === pages.length - 1;
+  $("#nextBtn").classList.toggle("hidden", isLast);
+  $("#nextBtn").textContent = p.dataset.next || "Next ▶";
+  $("#hint").textContent = p.dataset.hint || "";
+  $("#hint").classList.toggle("hidden", !p.dataset.hint);
+  if (p.dataset.done && !done.has(p.dataset.done)){ done.add(p.dataset.done); save(); renderLock(); }
+}
+$("#backBtn").addEventListener("click", () => show(cur - 1));
+$("#nextBtn").addEventListener("click", () => show(cur + 1));
+$$("#tabs button").forEach(b => b.addEventListener("click", () =>
+  show(pages.findIndex(p => p.dataset.sec === b.dataset.sec))));
+
+$("#subtabs").addEventListener("click", e => {
+  const b = e.target.closest("button[data-sub]");
+  if (b) show(pages.findIndex(p => p.dataset.sub === b.dataset.sub));
+});
+
+// swipe left / right
+let sx = null;
+$("#stage").addEventListener("touchstart", e => { sx = e.touches[0].clientX; }, {passive:true});
+$("#stage").addEventListener("touchend", e => {
+  if (sx === null) return;
+  const dx = e.changedTouches[0].clientX - sx; sx = null;
+  if (Math.abs(dx) > 70) show(cur + (dx < 0 ? 1 : -1));
+});
+
+/* ---------- grown-ups sheet ---------- */
+$("#grownBtn").addEventListener("click", () => {
+  $("#sheetBox").innerHTML = pages[cur].querySelector(".tip").innerHTML +
+    `<div class="row" style="margin-top:10px">
+       <button class="btn" id="closeSheet">Got it 👍</button>
+       ${allOpen()
+          ? `<button class="btn ghost" id="resetGame">🔄 Reset game</button>`
+          : `<button class="btn ghost" id="unlockNow">🔓 Unlock everything</button>`}
+     </div>`;
+  $("#sheet").classList.add("on");
+});
+$("#sheet").addEventListener("click", e => {
+  if (e.target.id === "unlockNow"){ unlockAll = true; save(); renderLock(); toast("🔓 Everything unlocked"); }
+  if (e.target.id === "resetGame"){
+    // two taps, so a stray tap doesn't wipe the child's progress
+    if (!e.target.dataset.armed){
+      e.target.dataset.armed = "1";
+      e.target.textContent = "⚠️ Tap again to reset all progress";
+      return;
+    }
+    done = new Set(); unlockAll = false; save();
+    location.reload();                                   // back to the first page with everything locked again
+  }
+  if (e.target.id === "sheet" || e.target.id === "closeSheet" || e.target.id === "unlockNow") $("#sheet").classList.remove("on");
+});
+
+renderLock();
+show(0);
+</script>
+</body>
+</html>
