@@ -18,7 +18,7 @@
   body{background:var(--bg);color:var(--ink);overflow:hidden;
     font:var(--fs)/1.4 "Nunito","Segoe UI",system-ui,-apple-system,sans-serif;
     -webkit-user-select:none;user-select:none}
-  .app{height:100vh;height:100dvh;display:grid;grid-template-rows:auto auto 1fr auto;
+  .app{height:100vh;height:100dvh;display:grid;grid-template-rows:auto auto 1fr auto;grid-template-columns:minmax(0,1fr);
     padding:env(safe-area-inset-top) max(12px,env(safe-area-inset-right)) env(safe-area-inset-bottom) max(12px,env(safe-area-inset-left))}
 
   /* ---- top bar ---- */
@@ -153,6 +153,25 @@
   .sheet h3{margin:0 0 6px;color:var(--blue-dk)}
   .sheet ul{padding-left:1.2em;margin:.4em 0}
 
+
+  /* ---- phone held upright: logo + Grown-ups on top, level tabs in one row below ---- */
+  .page > *{min-width:0}
+  @media (max-width:600px) and (orientation:portrait){
+    .page{grid-template-columns:minmax(0,1fr)}
+    header{flex-wrap:wrap;gap:6px 8px;padding:8px 2px 4px}
+    .logo{display:block;flex:1;order:1}
+    .grownup{order:2}
+    .tabs{order:3;flex:1 1 100%;flex-wrap:nowrap;overflow-x:auto;gap:5px;justify-content:center;scrollbar-width:none}
+    .tabs::-webkit-scrollbar{display:none}
+    .tabs button{flex:none;padding:3px 9px;font-size:.72em}
+    .subtabs{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;scrollbar-width:none}
+    .subtabs::-webkit-scrollbar{display:none}
+    .subtabs button{flex:none}
+    footer{flex-wrap:wrap}
+    .hint{order:-1;flex:1 1 100%;max-width:none;animation:none}
+    .hint::after{display:none}
+    .dots{flex:1}
+  }
   /* ---- portrait phones: stack ---- */
   @media (orientation:portrait){
     .page{grid-template-columns:1fr;grid-template-rows:minmax(0,1.1fr) minmax(0,1fr)}
